@@ -1,0 +1,95 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: "0.0.0.0:4317"
+      http:
+        endpoint: "0.0.0.0:4318"
+  
+  hostmetrics:
+    scrapers:
+      cpu:
+      disk:
+      filesystem:
+      load:
+      memory:
+      network:
+      process:
+      processes:
+      paging:
+
+  azuremonitor/webapp:
+    subscription_id: ""
+    tenant_id: ""
+    client_id: ""
+    client_secret: ""
+    cloud: AzureCloud
+    resource_groups:
+      - "op-services"
+    services:
+      - "Microsoft.Web/sites"
+    collection_interval: 60s
+    initial_delay: 1s
+
+
+exporters:
+  logging:
+    loglevel: debug  # Optional: Set the log level as needed
+
+  otlp/tempo:
+    endpoint: "http://172.178.87.248:4317"
+    tls:
+      insecure: true
+
+  loki:
+    endpoint: "http://172.178.87.248:3100/loki/api/v1/push"
+    tls:
+      insecure: true
+
+  otlphttp/prometheus:
+    endpoint: "http://172.178.87.248:9090/api/v1/otlp"
+    tls:
+      insecure: true
+
+connectors:
+  spanmetrics:
+    dimensions:
+      - name: http.method
+      - name: http.status_code
+      - name: http.route
+
+
+processors:
+  attributes:
+    actions:
+      - key: customer_id
+        action: insert
+        value: "mydotnet@4-app"
+  batch:
+
+service:
+  pipelines:
+    metrics/webapp:
+      receivers: [azuremonitor/webapp]
+      processors: [attributes, batch]
+      exporters: [logging, otlphttp/prometheus]
+    
+    traces:
+      receivers: [otlp]
+      processors: [attributes, batch]
+      exporters: [logging, spanmetrics, otlp/tempo]
+    
+    metrics:
+      receivers: [otlp, hostmetrics]
+      processors: [attributes, batch]
+      exporters: [logging, otlphttp/prometheus]
+
+    metrics/spanmetrics:
+      receivers: [spanmetrics]
+      processors: [attributes, batch]
+      exporters: [logging, otlphttp/prometheus]
+
+    logs:
+      receivers: [otlp]
+      processors: [attributes, batch]
+      exporters: [logging, loki]
