@@ -93,3 +93,7 @@ service:
       receivers: [otlp]
       processors: [attributes, batch]
       exporters: [logging, loki]
+
+      
+
+//docker run -itd -p 4317:4317 -p 4318:4318 -v /root/config.yaml:/etc/otelcol-contrib/config.yaml otel/opentelemetry-collector-contrib:0.109.0 
